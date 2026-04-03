@@ -38,6 +38,4 @@ venv\Scripts\activate
 # Linux/macOS
 # source venv/bin/activate
 pip install -r requirements.txt
-
-# run backend
 python main.py
