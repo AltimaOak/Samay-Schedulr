@@ -14,16 +14,7 @@
   --sidebar-bg: rgba(255, 255, 255, 0.8);
 }
 
-.dark {
-  --bg-gradient: linear-gradient(135deg, #020617 0%, #0f172a 100%);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --card-bg: rgba(30, 41, 59, 0.5);
-  --card-border: rgba(51, 65, 85, 0.4);
-  --accent: #818cf8;
-  --accent-glow: rgba(129, 140, 248, 0.2);
-  --sidebar-bg: rgba(15, 23, 42, 0.9);
-}
+
 
 @tailwind base;
 @tailwind components;
@@ -69,13 +60,8 @@
     background-color: var(--sidebar-bg);
   }
 
-  /* Utility Overrides for Dark Mode */
-  .dark .text-slate-900, .dark .text-slate-800, .dark .text-slate-700 { color: var(--text-primary) !important; }
-  .dark .text-slate-500, .dark .text-slate-400 { color: var(--text-secondary) !important; }
-  .dark .bg-white { background-color: var(--card-bg) !important; }
-  .dark .bg-slate-50 { background-color: rgba(15, 23, 42, 0.3) !important; }
-  .dark .bg-slate-900 { background-color: #f8fafc !important; color: #020617 !important; }
-  .dark .border-slate-200, .dark .border-slate-100 { border-color: var(--card-border) !important; }
+
+
 }
 
 #root {

@@ -11,10 +11,15 @@ export default function Dashboard() {
   const { currentUser } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [todayClasses, setTodayClasses] = useState([]);
+  const [fullTimetable, setFullTimetable] = useState([]);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(() => {
+    let day = new Date().getDay() - 1;
+    return day < 0 ? 6 : day;
+  });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  const [prefs, setPrefs] = useState({ collegeHours: 6, sleepHours: 8, freeHours: 4 });
+  const [prefs, setPrefs] = useState({ collegeHours: 6, sleepHours: 8, freeHours: 4, travelHours: 2 });
   const [showPrefForm, setShowPrefForm] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
@@ -42,6 +47,7 @@ export default function Dashboard() {
 
       setTasks(fetchedTasks.filter(t => t.status !== 'Completed').sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)));
       
+      setFullTimetable(fetchedTimetable);
       const date = new Date();
       let currentDayIndex = date.getDay() - 1; 
       if (currentDayIndex < 0) currentDayIndex = 6;
@@ -63,7 +69,7 @@ export default function Dashboard() {
       setGenerating(true);
       const plan = await generateStudyPlan({
         tasks,
-        todayClasses,
+        timetable: fullTimetable,
         prefs,
         syllabusFiles: files
       });
@@ -107,8 +113,11 @@ export default function Dashboard() {
     loadDashboardData();
   };
 
-  const totalUsedHours = Number(prefs.collegeHours) + Number(prefs.sleepHours);
+  const totalUsedHours = Number(prefs.collegeHours) + Number(prefs.sleepHours) + Number(prefs.travelHours || 2);
   const remainingHours = 24 - totalUsedHours;
+
+  const displayClasses = fullTimetable.filter(e => Number(e.dayOfWeek) === selectedDayIndex).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -166,6 +175,18 @@ export default function Dashboard() {
                   <span className="absolute right-4 top-3.5 text-slate-400 font-medium">hrs</span>
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">Travel Hours</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" 
+                    value={prefs.travelHours || 2}
+                    onChange={e => setPrefs({...prefs, travelHours: e.target.value})}
+                  />
+                  <span className="absolute right-4 top-3.5 text-slate-400 font-medium">hrs</span>
+                </div>
+              </div>
             </div>
 
             <div className="mt-10 flex gap-4">
@@ -195,19 +216,30 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="glass-card p-8 rounded-3xl flex flex-col h-full min-h-[420px] animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <h2 className="text-2xl font-bold mb-6 text-indigo-700 flex items-center gap-3">
-              <span className="p-2 bg-indigo-50 rounded-xl">📅</span> Your Day at a Glance
-            </h2>
+            <div className="flex justify-between items-center mb-6 text-indigo-700 border-b border-indigo-50 pb-4">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <span className="p-2 bg-indigo-50 rounded-xl">📅</span> Classes Overview
+              </h2>
+              <select 
+                className="bg-indigo-50 px-3 py-1.5 rounded-lg text-sm font-bold border border-indigo-100 outline-none text-indigo-600 cursor-pointer hover:bg-indigo-100 transition"
+                value={selectedDayIndex}
+                onChange={(e) => setSelectedDayIndex(Number(e.target.value))}
+              >
+                {daysOfWeek.map((day, idx) => (
+                  <option key={idx} value={idx}>{day}</option>
+                ))}
+              </select>
+            </div>
             <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-              {todayClasses.length === 0 ? (
+              {displayClasses.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
                   <span className="text-4xl">☕</span>
                   <p className="font-medium">No classes today. Enjoy your break!</p>
                 </div>
               ) : (
                 <ul className="space-y-4">
-                  {todayClasses.map(cls => (
-                    <li key={cls.id} className="p-4 bg-white/50 border border-indigo-100 rounded-2xl flex justify-between items-center hover:bg-white hover:border-indigo-200 transition-all duration-300 hover:shadow-sm">
+                  {displayClasses.map((cls, idx) => (
+                    <li key={idx} className="p-4 bg-white/50 border border-indigo-100 rounded-2xl flex justify-between items-center hover:bg-white hover:border-indigo-200 transition-all duration-300 hover:shadow-sm">
                       <span className="font-bold text-slate-800">{cls.courseName}</span>
                       <span className="text-xs font-bold text-indigo-700 bg-indigo-50/80 px-3 py-1.5 rounded-full border border-indigo-100">
                         {cls.startTime} - {cls.endTime}
@@ -295,15 +327,25 @@ export default function Dashboard() {
                       </div>
                     </div>
                     
-                    {studyPlan && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                        {(studyPlan.dailySchedule || []).map((item, idx) => (
-                          <div key={idx} className="bg-white/10 backdrop-blur-md p-5 rounded-2xl border border-white/10 transition-all hover:bg-white/20 hover:-translate-y-1">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">{item.time}</span>
-                              <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
+                    {studyPlan && studyPlan.twoWeekSchedule && studyPlan.twoWeekSchedule.length > 0 && (
+                      <div className="flex overflow-x-auto gap-4 mb-2 pb-4 snap-x custom-scrollbar">
+                        {studyPlan.twoWeekSchedule.map((dayObj, dayIdx) => (
+                          <div key={dayIdx} className="min-w-[280px] sm:min-w-[320px] bg-white/10 backdrop-blur-md p-6 rounded-[1.5rem] border border-white/10 snap-center">
+                            <h4 className="text-white font-black mb-4 border-b border-white/10 pb-2">{dayObj.dayLabel}</h4>
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar flex flex-col">
+                              {(dayObj.dailySchedule || []).map((item, idx) => (
+                                <div key={idx} className="bg-slate-900/40 p-3.5 rounded-xl border border-white/5 transition-all hover:bg-white/10">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">{item.time}</span>
+                                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-200 leading-snug block">{item.activity}</span>
+                                </div>
+                              ))}
+                              {(!dayObj.dailySchedule || dayObj.dailySchedule.length === 0) && (
+                                <div className="text-white/50 text-xs text-center py-4 italic font-medium">No tasks scheduled for this day</div>
+                              )}
                             </div>
-                            <span className="text-sm font-bold text-white leading-tight block">{item.activity}</span>
                           </div>
                         ))}
                       </div>
@@ -353,6 +395,14 @@ export default function Dashboard() {
                       </div>
                       <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
                         <div className="bg-purple-400 h-full" style={{ width: `${(prefs.sleepHours / 24) * 100}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-end">
+                        <span className="text-white/70 text-sm font-medium">Travel</span> 
+                        <span className="font-bold text-white">{prefs.travelHours || 2}h</span>
+                      </div>
+                      <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-emerald-400 h-full" style={{ width: `${((Number(prefs.travelHours) || 2) / 24) * 100}%` }}></div>
                       </div>
 
                       <div className="pt-6 border-t border-white/10 mt-6 flex flex-col gap-1">

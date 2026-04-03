@@ -40,6 +40,7 @@ from typing import List, Optional, Any
 class StudyPlanRequest(BaseModel):
     tasks: Optional[List[Any]] = []
     todayClasses: Optional[List[Any]] = []
+    timetable: Optional[List[Any]] = []
     prefs: Optional[dict] = {}
     syllabusFiles: Optional[List[Any]] = []
 
@@ -64,10 +65,10 @@ async def analyze_syllabus(courseName: str = Form(...), file: UploadFile = File(
         model = genai.GenerativeModel(MODEL_NAME)
         
         prompt = f"""Act as a pedagogical expert and NLP analyzer. 
-        Thoroughly scan the uploaded syllabus for the course "{courseName}".
+        Thoroughly scan the uploaded syllabus for the subject(s) "{courseName}".
         
         TASKS:
-        1. Identify the high-level chapters or modules.
+        1. Identify the high-level chapters or modules for EACH subject mentioned in "{courseName}".
         2. Extract 5-10 specific, granular academic topics that represent the core of this course.
         3. Ensure topics are concise (2-4 words each).
         
@@ -102,10 +103,13 @@ async def generate_plan(request: StudyPlanRequest):
         
         prefs = request.prefs or {}
         tasks = request.tasks or []
-        today_classes = request.todayClasses or []
+        timetable = request.timetable or []
         syllabus_files_input = request.syllabusFiles or []
         
-        free_hours = 24 - int(prefs.get('sleepHours', 8)) - int(prefs.get('collegeHours', 6))
+        sleep_hours = int(prefs.get('sleepHours', 8))
+        college_hours = int(prefs.get('collegeHours', 6))
+        travel_hours = int(prefs.get('travelHours', 2))
+        free_hours = 24 - sleep_hours - college_hours - travel_hours
         
         # Prefer selectedTopics if available, otherwise fallback to topics
         syllabus_data = []
@@ -115,26 +119,33 @@ async def generate_plan(request: StudyPlanRequest):
             active_topics = f.get('selectedTopics') or f.get('topics') or []
             syllabus_data.append({'course': course, 'topics': active_topics})
 
-        prompt = f"""Act as an expert academic coach. Generate a highly personalized, TIME-WISE daily study roadmap based on:
-        - User Constraints: Sleep {prefs.get('sleepHours', 8)}h, College/Work {prefs.get('collegeHours', 6)}h.
-        - Today's Classes: {json.dumps(today_classes)}
+        prompt = f"""Act as an expert academic coach. Generate a highly personalized, TIME-WISE 14-DAY (two weeks) study roadmap based on:
+        - User Constraints: Sleep {sleep_hours}h, College/Work {college_hours}h, Travel {travel_hours}h.
+        - Weekly Timetable (0=Mon, 6=Sun): {json.dumps(timetable)}
         - Pending Tasks: {json.dumps(tasks)}
         - Core Focus Areas (from Syllabus): {json.dumps(syllabus_data)}
 
         The plan MUST:
-        1. STRECTLY AVOID scheduling any study sessions during the times listed in "Today's Classes". These are blocked academic hours.
-        2. Only use the remaining available {free_hours} free hours for study tasks.
-        3. Suggest specific time slots (e.g., 04:00 PM - 05:00 PM) for each activity.
-        4. Prioritize urgent tasks and the focus areas from the syllabus.
-        5. Include short breaks between sessions.
+        1. Parse the "Weekly Timetable" array. Map these classes precisely to the corresponding days in the 14-day schedule based on `dayOfWeek`. STRICTLY AVOID scheduling any study sessions during class times.
+        2. IF a day has NO classes based on the timetable (e.g. weekends): IGNORE college and travel hours. The student has EXACTLY `{24 - sleep_hours}` free hours to study.
+        3. IF a day HAS classes: the student has EXACTLY `{free_hours}` free hours left that day to study.
+        4. Suggest specific time slots (e.g., 04:00 PM - 05:00 PM) for each activity.
+        5. Spread tasks and syllabus study over the next 14 days, prioritizing urgent tasks first.
+        6. Include short breaks between sessions.
         
-        Return the response as a valid JSON object matching this structure:
+        Return the response as a valid JSON object matching exactly this structure:
         {{
-          "summary": "Full sentence summary...",
-          "dailySchedule": [
-            {{"time": "HH:MM AM/PM", "activity": "Specific task/topic session"}}
+          "summary": "Full sentence summary of the 2-week strategy...",
+          "twoWeekSchedule": [
+            {{
+              "dayLabel": "Day 1 (Monday)",
+              "dailySchedule": [
+                {{"time": "HH:MM AM/PM", "activity": "Specific task/topic session"}}
+              ]
+            }}
           ]
-        }}"""
+        }}
+        Provide exactly 14 day objects in the twoWeekSchedule array."""
         
         response = model.generate_content(prompt)
         text = response.text
@@ -143,19 +154,19 @@ async def generate_plan(request: StudyPlanRequest):
         start = text.find('{')
         end = text.rfind('}') + 1
         if start == -1 or end == 0:
-            return {"summary": "AI was unable to generate a valid plan.", "dailySchedule": []}
+            return {"summary": "AI was unable to generate a valid plan.", "twoWeekSchedule": []}
             
         json_match = json.loads(text[start:end])
         
-        # Ensure dailySchedule is present
-        if "dailySchedule" not in json_match or not isinstance(json_match["dailySchedule"], list):
-            json_match["dailySchedule"] = []
+        # Ensure twoWeekSchedule is present
+        if "twoWeekSchedule" not in json_match or not isinstance(json_match["twoWeekSchedule"], list):
+            json_match["twoWeekSchedule"] = []
             
         return json_match
     except Exception as e:
         print(f"ERROR in /generate-plan: {str(e)}")
         traceback.print_exc()
-        return {"summary": "An error occurred while generating your plan.", "dailySchedule": []}
+        return {"summary": "An error occurred while generating your plan.", "twoWeekSchedule": []}
 
 @app.post("/topic-suggestion")
 async def topic_suggestion(request: TopicSuggestionRequest):
@@ -267,4 +278,5 @@ async def timetable_insights(request: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    print("\n--- SERVER RUNNING AT: http://127.0.0.1:8001 ---\n")
+    uvicorn.run(app, host="127.0.0.1", port=8001)
