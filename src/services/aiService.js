@@ -3,7 +3,7 @@ import { ref, update } from 'firebase/database';
 
 const SYLLABUS_PATH = 'syllabus';
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = '/api';
 
 /**
  * Generate a full study plan using Python Backend
