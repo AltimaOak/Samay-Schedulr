@@ -48,13 +48,13 @@ class TopicSuggestionRequest(BaseModel):
     topic: str
     courseName: str
 
-@app.get("/")
+@app.get("/api/")
 async def root():
     return {"message": "Study Academic Planner API is running"}
 
 import traceback
 
-@app.post("/analyze-syllabus")
+@app.post("/api/analyze-syllabus")
 async def analyze_syllabus(courseName: str = Form(...), file: UploadFile = File(...)):
     try:
         print(f"Analyzing syllabus for course: {courseName}")
@@ -96,7 +96,7 @@ async def analyze_syllabus(courseName: str = Form(...), file: UploadFile = File(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/generate-plan")
+@app.post("/api/generate-plan")
 async def generate_plan(request: StudyPlanRequest):
     try:
         model = genai.GenerativeModel(MODEL_NAME)
@@ -168,7 +168,7 @@ async def generate_plan(request: StudyPlanRequest):
         traceback.print_exc()
         return {"summary": "An error occurred while generating your plan.", "twoWeekSchedule": []}
 
-@app.post("/topic-suggestion")
+@app.post("/api/topic-suggestion")
 async def topic_suggestion(request: TopicSuggestionRequest):
     try:
         model = genai.GenerativeModel(MODEL_NAME)
@@ -181,7 +181,7 @@ async def topic_suggestion(request: TopicSuggestionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/urgent-nudge")
+@app.post("/api/urgent-nudge")
 async def urgent_nudge(request: dict):
     try:
         tasks = request.get('tasks', [])
@@ -204,7 +204,8 @@ async def urgent_nudge(request: dict):
     except Exception as e:
         print(f"ERROR in /urgent-nudge: {str(e)}")
         return {"nudge": "Keep going, you're doing great!"}
-@app.post("/parse-timetable")
+
+@app.post("/api/parse-timetable")
 async def parse_timetable(file: UploadFile = File(...)):
     try:
         content = await file.read()
@@ -240,7 +241,7 @@ async def parse_timetable(file: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/timetable-insights")
+@app.post("/api/timetable-insights")
 async def timetable_insights(request: dict):
     try:
         events = request.get('events', [])
