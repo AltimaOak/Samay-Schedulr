@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false);
   const [showDaysModal, setShowDaysModal] = useState(false);
   const [selectedDays, setSelectedDays] = useState(14);
+  const [loadingMessageIdx, setLoadingMessageIdx] = useState(0);
 
   const scrollContainerRef = useRef(null);
   const daysWheelRef = useRef(null);
@@ -84,6 +85,23 @@ export default function Dashboard() {
       el.removeEventListener('wheel', handleWheel);
     };
   }, [showDaysModal]);
+
+  const loadingMessages = [
+    "Analyzing syllabus topics & calendar events...",
+    "Optimizing study windows around classes...",
+    "Formulating peak performance intervals...",
+    "Spreading tasks dynamically across your schedule...",
+    "Drafting your personalized hour-by-hour roadmap..."
+  ];
+
+  useEffect(() => {
+    if (!generating) return;
+    setLoadingMessageIdx(0);
+    const timer = setInterval(() => {
+      setLoadingMessageIdx(prev => (prev + 1) % loadingMessages.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [generating]);
 
   const loadDashboardData = async () => {
     try {
@@ -614,6 +632,46 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {generating && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center z-50 p-6 animate-fade">
+          {/* Animated 3D-orbiting rings loader */}
+          <div className="relative w-48 h-48 flex items-center justify-center">
+            {/* Center Core Brain */}
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-3xl shadow-[0_0_40px_rgba(99,102,241,0.6)] animate-pulse relative z-10 border border-white/20">
+              🧠
+            </div>
+            {/* Inner Ring */}
+            <div className="absolute w-24 h-24 border-2 border-dashed border-indigo-400/40 rounded-full animate-[spin_6s_linear_infinite]"></div>
+            {/* Outer Ring */}
+            <div className="absolute w-32 h-32 border border-purple-500/20 rounded-full animate-[spin_10s_linear_infinite_reverse]"></div>
+            {/* Orbiting particles */}
+            <div className="absolute w-40 h-40 border border-indigo-500/10 rounded-full animate-[spin_4s_linear_infinite]">
+              <div className="w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.8)] absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+            </div>
+            <div className="absolute w-48 h-48 border border-purple-500/5 rounded-full animate-[spin_8s_linear_infinite_reverse]">
+              <div className="w-2.5 h-2.5 bg-purple-400 rounded-full shadow-[0_0_12px_rgba(192,132,252,0.8)] absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2"></div>
+            </div>
+          </div>
+
+          {/* Glowing loader title */}
+          <h3 className="text-xl md:text-2xl font-black text-white tracking-tight text-center mt-10 flex items-center gap-2">
+            <span>Consulting AI Mentor</span>
+            <span className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></span>
+            </span>
+          </h3>
+
+          {/* Shifting loading carousel messages */}
+          <div className="h-10 mt-4 overflow-hidden relative w-full max-w-sm flex items-center justify-center">
+            <p className="text-slate-400 text-xs md:text-sm font-semibold tracking-wide text-center">
+              {loadingMessages[loadingMessageIdx]}
+            </p>
           </div>
         </div>
       )}
