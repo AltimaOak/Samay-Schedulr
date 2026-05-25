@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [selectedDays, setSelectedDays] = useState(14);
 
   const scrollContainerRef = useRef(null);
+  const daysWheelRef = useRef(null);
 
   const scrollRoadmap = (direction) => {
     if (scrollContainerRef.current) {
@@ -63,6 +64,26 @@ export default function Dashboard() {
       container.removeEventListener('wheel', handleWheel);
     };
   }, [studyPlan]);
+
+  useEffect(() => {
+    const el = daysWheelRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      setSelectedDays((prev) => {
+        // scroll up (deltaY < 0) -> increase; scroll down (deltaY > 0) -> decrease
+        const diff = e.deltaY < 0 ? 1 : -1;
+        const nextDays = prev + diff;
+        return Math.max(1, Math.min(60, nextDays));
+      });
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [showDaysModal]);
 
   const loadDashboardData = async () => {
     try {
@@ -242,53 +263,59 @@ export default function Dashboard() {
 
       {showDaysModal && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade">
-          <div className="bg-slate-900 border border-slate-800 text-white p-8 rounded-[2rem] shadow-2xl max-w-xl w-full animate-slide-up relative overflow-hidden">
+          <div className="bg-slate-900 border border-slate-800 text-white p-6 md:p-8 rounded-[1.8rem] md:rounded-[2rem] shadow-2xl max-w-md md:max-w-xl w-full animate-slide-up relative overflow-hidden mx-auto">
             {/* Ambient background glow */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full -mr-24 -mt-24 blur-3xl"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
 
             <div className="relative z-10">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-indigo-500/20 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-2xl">
+              <div className="flex items-center gap-3 md:gap-4 mb-5 md:mb-6">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-500/20 border border-indigo-500/30 rounded-xl md:rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0">
                   🪄
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black tracking-tight text-white">Roadmap Duration</h3>
-                  <p className="text-slate-400 text-xs font-semibold mt-1">Choose how many days you would like the AI to plan.</p>
+                  <h3 className="text-xl md:text-2xl font-black tracking-tight text-white">Roadmap Duration</h3>
+                  <p className="text-slate-400 text-[10px] md:text-xs font-semibold mt-0.5 md:mt-1">Choose how many days you would like the AI to plan.</p>
                 </div>
               </div>
 
-              {/* Pre-set Quick Cards */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {[
-                  { days: 3, label: '3 Days', desc: 'Sprint 🚀', color: 'border-cyan-500/30 hover:border-cyan-400' },
-                  { days: 7, label: '7 Days', desc: 'Weekly 📅', color: 'border-emerald-500/30 hover:border-emerald-400' },
-                  { days: 14, label: '14 Days', desc: 'Bi-Weekly 🎓', color: 'border-indigo-500/30 hover:border-indigo-400' },
-                  { days: 30, label: '30 Days', desc: 'Monthly 🏆', color: 'border-purple-500/30 hover:border-purple-400' }
-                ].map((item) => (
-                  <button
-                    key={item.days}
-                    type="button"
-                    onClick={() => setSelectedDays(item.days)}
-                    className={`p-4 rounded-2xl border text-left transition-all duration-300 ${
-                      selectedDays === item.days
-                        ? 'bg-indigo-600/20 border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                        : `bg-slate-950/40 border-slate-800 hover:bg-slate-950/60`
-                    }`}
-                  >
-                    <span className="block font-black text-lg text-white">{item.label}</span>
-                    <span className="block text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{item.desc}</span>
-                  </button>
-                ))}
-              </div>
-
               {/* Slider for Custom Range */}
-              <div className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-5 mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Custom Duration</span>
-                  <span className="text-indigo-400 font-black text-lg bg-indigo-500/10 px-3 py-1 rounded-lg border border-indigo-500/20">
-                    {selectedDays} {selectedDays === 1 ? 'Day' : 'Days'}
-                  </span>
+              <div 
+                ref={daysWheelRef}
+                className="bg-slate-950/50 border border-slate-800/80 rounded-2xl p-4 md:p-5 mb-5 md:mb-6 hover:border-indigo-500/40 hover:bg-slate-950/70 transition-all duration-300 group/custom"
+              >
+                <div className="flex flex-row justify-between items-center gap-2 mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">Custom Duration</span>
+                    <span className="text-[9px] md:text-[10px] text-indigo-400/80 font-bold mt-0.5 flex items-center gap-1 group-hover/custom:text-indigo-400 transition-colors">
+                      🖱️ Scroll wheel to tune
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                    <span className="text-indigo-400 font-black text-sm md:text-lg bg-indigo-500/10 px-2.5 py-1 md:px-3.5 md:py-1.5 rounded-lg md:rounded-xl border border-indigo-500/20 shadow-inner min-w-[65px] md:min-w-[85px] text-center">
+                      {selectedDays} {selectedDays === 1 ? 'Day' : 'Days'}
+                    </span>
+                    <div className="flex flex-col gap-0.5 md:gap-1">
+                      {/* Scroll Up Button */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDays(prev => Math.min(60, prev + 1))}
+                        className="w-6 h-6 md:w-7 md:h-7 bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-md md:rounded-lg flex items-center justify-center border border-white/5 shadow-md active:scale-90 transition-all duration-300"
+                        title="Increase Days"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                      </button>
+                      {/* Scroll Down Button */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDays(prev => Math.max(1, prev - 1))}
+                        className="w-6 h-6 md:w-7 md:h-7 bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-md md:rounded-lg flex items-center justify-center border border-white/5 shadow-md active:scale-90 transition-all duration-300"
+                        title="Decrease Days"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -308,22 +335,22 @@ export default function Dashboard() {
               </div>
 
               {/* Summary Stats / Net Hours Estimate */}
-              <div className="bg-indigo-950/20 border border-indigo-500/10 rounded-2xl p-4 mb-8 flex justify-between items-center">
+              <div className="bg-indigo-950/20 border border-indigo-500/10 rounded-2xl p-3 md:p-4 mb-6 md:mb-8 flex justify-between items-center gap-2">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider">Estimated Study Time</span>
-                  <span className="text-[11px] font-bold text-slate-400">Based on your daily net slot ({remainingHours}h)</span>
+                  <span className="text-[9px] md:text-[10px] font-black text-indigo-400 uppercase tracking-wider">Estimated Study Time</span>
+                  <span className="text-[10px] md:text-[11px] font-bold text-slate-400 leading-tight">Based on daily {remainingHours}h slot</span>
                 </div>
-                <span className="text-2xl font-black text-white bg-indigo-600/15 border border-indigo-500/20 px-4 py-1.5 rounded-xl shadow-inner">
+                <span className="text-xl md:text-2xl font-black text-white bg-indigo-600/15 border border-indigo-500/20 px-3 py-1 md:px-4 md:py-1.5 rounded-lg md:rounded-xl shadow-inner shrink-0">
                   ~{remainingHours * selectedDays} hrs
                 </span>
               </div>
 
               {/* Action buttons */}
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => setShowDaysModal(false)}
-                  className="flex-1 px-4 py-4 text-slate-400 font-bold hover:text-white hover:bg-white/5 rounded-2xl transition duration-300 border border-transparent hover:border-slate-800"
+                  className="w-full sm:flex-1 px-4 py-3 md:py-4 text-slate-400 font-bold hover:text-white hover:bg-white/5 rounded-xl md:rounded-2xl transition duration-300 border border-transparent hover:border-slate-800 order-2 sm:order-1 text-sm md:text-base"
                 >
                   Cancel
                 </button>
@@ -333,7 +360,7 @@ export default function Dashboard() {
                     setShowDaysModal(false);
                     handleGeneratePlan(selectedDays);
                   }}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black px-4 py-4 rounded-2xl transition-all duration-300 shadow-xl shadow-indigo-900/40 hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] active:translate-y-0"
+                  className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black px-4 py-3 md:py-4 rounded-xl md:rounded-2xl transition-all duration-300 shadow-xl shadow-indigo-900/40 hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] active:translate-y-0 order-1 sm:order-2 text-sm md:text-base"
                 >
                   Build My Roadmap 🪄
                 </button>
