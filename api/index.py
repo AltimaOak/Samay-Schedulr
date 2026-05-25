@@ -43,6 +43,7 @@ class StudyPlanRequest(BaseModel):
     timetable: Optional[List[Any]] = []
     prefs: Optional[dict] = {}
     syllabusFiles: Optional[List[Any]] = []
+    days: Optional[int] = 14
 
 class TopicSuggestionRequest(BaseModel):
     topic: str
@@ -106,6 +107,12 @@ async def generate_plan(request: StudyPlanRequest):
         timetable = request.timetable or []
         syllabus_files_input = request.syllabusFiles or []
         
+        days = request.days or 14
+        if days < 1:
+            days = 14
+        elif days > 60:
+            days = 60  # Safe cap
+            
         sleep_hours = int(prefs.get('sleepHours', 8))
         college_hours = int(prefs.get('collegeHours', 6))
         travel_hours = int(prefs.get('travelHours', 2))
@@ -119,23 +126,23 @@ async def generate_plan(request: StudyPlanRequest):
             active_topics = f.get('selectedTopics') or f.get('topics') or []
             syllabus_data.append({'course': course, 'topics': active_topics})
 
-        prompt = f"""Act as an expert academic coach. Generate a highly personalized, TIME-WISE 14-DAY (two weeks) study roadmap based on:
+        prompt = f"""Act as an expert academic coach. Generate a highly personalized, TIME-WISE {days}-DAY study roadmap based on:
         - User Constraints: Sleep {sleep_hours}h, College/Work {college_hours}h, Travel {travel_hours}h.
         - Weekly Timetable (0=Mon, 6=Sun): {json.dumps(timetable)}
         - Pending Tasks: {json.dumps(tasks)}
         - Core Focus Areas (from Syllabus): {json.dumps(syllabus_data)}
 
         The plan MUST:
-        1. Parse the "Weekly Timetable" array. Map these classes precisely to the corresponding days in the 14-day schedule based on `dayOfWeek`. STRICTLY AVOID scheduling any study sessions during class times.
+        1. Parse the "Weekly Timetable" array. Map these classes precisely to the corresponding days in the {days}-day schedule based on `dayOfWeek`. STRICTLY AVOID scheduling any study sessions during class times.
         2. IF a day has NO classes based on the timetable (e.g. weekends): IGNORE college and travel hours. The student has EXACTLY `{24 - sleep_hours}` free hours to study.
         3. IF a day HAS classes: the student has EXACTLY `{free_hours}` free hours left that day to study.
         4. Suggest specific time slots (e.g., 04:00 PM - 05:00 PM) for each activity.
-        5. Spread tasks and syllabus study over the next 14 days, prioritizing urgent tasks first.
+        5. Spread tasks and syllabus study over the next {days} days, prioritizing urgent tasks first.
         6. Include short breaks between sessions.
         
         Return the response as a valid JSON object matching exactly this structure:
         {{
-          "summary": "Full sentence summary of the 2-week strategy...",
+          "summary": "Full sentence summary of the {days}-day strategy...",
           "twoWeekSchedule": [
             {{
               "dayLabel": "Day 1 (Monday)",
@@ -145,7 +152,7 @@ async def generate_plan(request: StudyPlanRequest):
             }}
           ]
         }}
-        Provide exactly 14 day objects in the twoWeekSchedule array."""
+        Provide exactly {days} day objects in the twoWeekSchedule array."""
         
         response = model.generate_content(prompt)
         text = response.text
